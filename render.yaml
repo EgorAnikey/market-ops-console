@@ -8,6 +8,10 @@ services:
     dockerfilePath: ./Dockerfile
     dockerContext: .
     autoDeployTrigger: checksPass
+    buildFilter:
+      ignoredPaths:
+        - "**/*.md"
+        - docs/**
     healthCheckPath: /api/health
     envVars:
       - key: PORT

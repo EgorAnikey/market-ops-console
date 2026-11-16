@@ -17,8 +17,33 @@ env:
   NODE_VERSION: 22
 
 jobs:
+  changes:
+    name: Detect application changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      app: ${{ github.event_name == 'workflow_dispatch' && 'true' || steps.filter.outputs.app }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dorny/paths-filter@v4
+        id: filter
+        if: github.event_name != 'workflow_dispatch'
+        with:
+          base: ${{ github.event_name == 'push' && github.ref || '' }}
+          predicate-quantifier: every
+          filters: |
+            app:
+              - '**'
+              - '!**/*.md'
+              - '!docs/**'
+
   quality:
     name: Lint, types, unit & component tests
+    needs: changes
+    if: needs.changes.outputs.app == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -94,17 +119,28 @@ jobs:
   ci-passed:
     name: CI passed
     if: always()
-    needs: [quality, e2e, docker]
+    needs: [changes, quality, e2e, docker]
     runs-on: ubuntu-latest
     steps:
-      - name: Require every job to succeed
+      - name: Check required job results
         env:
-          RESULTS: ${{ join(needs.*.result, ' ') }}
+          DETECTION_RESULT: ${{ needs.changes.result }}
+          APP_CHANGED: ${{ needs.changes.outputs.app }}
+          RESULTS: ${{ needs.quality.result }} ${{ needs.e2e.result }} ${{ needs.docker.result }}
         run: |
-          echo "Job results: $RESULTS"
+          if [ "$DETECTION_RESULT" != "success" ]; then
+            echo "::error::Change detection did not succeed ($DETECTION_RESULT)."
+            exit 1
+          fi
+          case "$APP_CHANGED" in
+            true) expected_result=success ;;
+            false) expected_result=skipped ;;
+            *) echo "::error::Missing change detection result."; exit 1 ;;
+          esac
+          echo "Job results: $RESULTS (expected $expected_result)"
           for result in $RESULTS; do
-            if [ "$result" != "success" ]; then
-              echo "::error::A required CI job did not succeed ($result)."
+            if [ "$result" != "$expected_result" ]; then
+              echo "::error::A required CI job was $result, expected $expected_result."
               exit 1
             fi
           done
