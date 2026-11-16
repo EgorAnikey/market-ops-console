@@ -1,0 +1,12 @@
+node_modules
+.next
+.git
+coverage
+*.tsbuildinfo
+.env*.local
+Dockerfile
+docker-compose.yml
+.DS_Store
+storybook-static
+playwright-report
+test-results

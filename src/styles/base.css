@@ -1,0 +1,87 @@
+@layer base {
+  html {
+    background: var(--canvas);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+    font-size: 0.875rem;
+    line-height: 1.45;
+  }
+  :focus-visible {
+    outline: 2px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+  svg :focus-visible {
+    outline: none;
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+}
+
+@layer utilities {
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+  @media (pointer: coarse) {
+    .touch-target {
+      min-height: 2.5rem;
+      min-width: 2.5rem;
+    }
+  }
+  .viz-focus:focus-visible {
+    stroke: var(--focus);
+    stroke-width: 2.5px;
+  }
+  .live-number {
+    border-radius: 4px;
+    transition:
+      color 1.2s ease-out,
+      background-color 1.2s ease-out;
+  }
+  .live-number[data-changed] {
+    color: var(--accent);
+    background-color: var(--accent-soft);
+    transition: none;
+  }
+  .viz-group-focus:focus-visible > polygon {
+    stroke-width: 3px;
+    filter: drop-shadow(0 0 1.5px var(--focus)) drop-shadow(0 0 1.5px var(--focus));
+  }
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+@media (forced-colors: active) {
+  .viz-focus:focus-visible {
+    stroke: Highlight;
+  }
+  svg path,
+  svg circle {
+    forced-color-adjust: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  ::before,
+  ::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

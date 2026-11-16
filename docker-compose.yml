@@ -1,0 +1,40 @@
+x-dev: &dev
+  build:
+    context: .
+    target: dev
+  image: market-ops-console:dev
+  volumes:
+    - ./:/app
+    - /app/node_modules
+    - /app/.next
+  environment:
+    CHAT_TOKEN_DELAY_MS: ${CHAT_TOKEN_DELAY_MS:-35}
+    ALERTS_LATENCY_MS: ${ALERTS_LATENCY_MS:-600}
+    LIVE_INTERVAL_MS: ${LIVE_INTERVAL_MS:-3000}
+
+services:
+  app:
+    profiles: ["prod"]
+    build: .
+    image: market-ops-console:local
+    ports:
+      - "3000:3000"
+    environment:
+      CHAT_TOKEN_DELAY_MS: ${CHAT_TOKEN_DELAY_MS:-35}
+      ALERTS_LATENCY_MS: ${ALERTS_LATENCY_MS:-600}
+      LIVE_INTERVAL_MS: ${LIVE_INTERVAL_MS:-3000}
+    read_only: true
+    tmpfs:
+      - /tmp
+    restart: unless-stopped
+
+  dev:
+    <<: *dev
+    ports:
+      - "3000:3000"
+
+  storybook:
+    <<: *dev
+    ports:
+      - "127.0.0.1:6006:6006"
+    command: ["npx", "storybook", "dev", "--port", "6006", "--host", "0.0.0.0", "--no-open", "--ci"]
