@@ -54,7 +54,7 @@ The assistant uses the provided fixtures, as the assignment asks, and sign-in is
 
 - The session cookie holds a plain user id and isn't signed, so the stub isn't suitable for production.
 - Alert rules are kept in memory and are lost on restart.
-- The deploy workflow has no hosting target yet, and there's no public URL.
+- The Render setup is ready, but there's no public demo yet.
 - No Content Security Policy and no rate limiting on `/api/rum`.
 - Only numbers and dates are localised; UI text is English.
 - No testing with VoiceOver or NVDA yet.
@@ -222,9 +222,19 @@ CI enforces first-load JavaScript budgets. [e2e/performance.spec.ts](e2e/perform
 
 **Hardening.** The env, the dataset, request bodies, stream events and URL params are validated with the zod schemas in [src/contracts](src/contracts). Security headers are set in [next.config.ts](next.config.ts), alert payloads are re-validated on the server, and `/api/rum` reads at most 4 KB of a request body.
 
-**Build.** Next standalone output in a multi-stage [Dockerfile](Dockerfile) that runs as non-root on a read-only filesystem, with a healthcheck on `/api/health`.
+**Build.** Next standalone output in a multi-stage [Dockerfile](Dockerfile) that runs as non-root, with a healthcheck on `/api/health`. The production service in [docker-compose.yml](docker-compose.yml) also uses a read-only filesystem.
 
-**CI/CD.** [ci.yml](.github/workflows/ci.yml) runs format, lint, type check, unit tests and a Storybook build, then Playwright and a Docker build with the smoke test in parallel, and ends in one **CI passed** job for branch protection. [deploy.yml](.github/workflows/deploy.yml) deploys the commit CI tested through GitHub Environments, with production only from `main`; the release step is a stub.
+**CI.** [ci.yml](.github/workflows/ci.yml) checks formatting, lint, types and unit/component tests, then builds Storybook. Playwright and the Docker smoke test run next, in parallel. The final **CI passed** job gives branch protection one check to require.
+
+**Deployment.** I chose Render Free because it runs the existing Docker image as one Node server. The page and API routes share that process, which keeps the demo's in-memory alert store working between requests. [render.yaml](render.yaml) sets the Free plan and tells Render to deploy `main` after CI passes. Render builds the tested commit and checks `/api/health` before serving the new version.
+
+For the first deploy:
+
+1. Push the changes to GitHub and wait for **CI passed**.
+2. Sign in to [Render](https://dashboard.render.com/) with GitHub. Choose **New → Blueprint**, select the repository and use `render.yaml`. Check that the service uses the **Free** plan, then create it.
+3. In the service's Settings, check that **Auto-Deploy** is **After CI Checks Pass**. In the Blueprint's Settings, set **Auto Sync** to **No**. This keeps code deploys automatic; later changes to `render.yaml` need a manual sync after CI passes.
+
+On the [free plan](https://render.com/docs/free), the service sleeps after 15 minutes without incoming traffic. The next visit can take about a minute to wake it. Alert rules are lost when the process restarts, including after a deploy or sleep.
 
 ## Standards
 
@@ -250,7 +260,7 @@ One problem the tests didn't catch at first: my first live mode wrote updates in
 
 ## Next steps
 
-1. **Automatic deploys and a protected `main`.** The deploy workflow already starts when CI passes on `main`; what's missing is the release step. I'd pick a host, push the image CI built, and run the smoke test against the new deployment, rolling back to the previous image if it fails. Every pull request would also get its own preview URL, so a reviewer can click through a change before it merges. Then require the **CI passed** check on `main`, so nothing reaches production without green CI. A public link matters more for this project than any new feature.
+1. **Publish the demo and protect `main`.** Finish the Render setup, add the public URL here, and require **CI passed** before merging. After that I'd add preview URLs for pull requests and smoke tests against each deployment.
 2. **Real sign-in and persistent alerts.** OIDC with a signed session, and a database for alert rules with an idempotency key, so a retried save can't create a duplicate.
 3. **Error tracking.** Connect Sentry at `reportError`, upload source maps and tag errors with the release, so a regression after a deploy is visible quickly.
 4. **Connect a real model and add a repeatable evaluation set.** This is the next product step rather than part of this assignment. The fixtures exercise the UI, but they can't show how reliable generated answers will be. A set of questions with expected sources would check that citations resolve and numbers match `data.json`, run on every prompt or model change.
